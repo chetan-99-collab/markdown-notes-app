@@ -3,6 +3,9 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 
+// 🔥 CHANGE: use deployed backend
+const API_BASE = "https://markdown-notes-app-h1q3.onrender.com";
+
 function App() {
   const [notes, setNotes] = useState([]);
   const [title, setTitle] = useState('');
@@ -17,37 +20,45 @@ function App() {
   }, []);
 
   const fetchNotes = async () => {
-    const res = await axios.get('http://localhost:5000/notes');
-    setNotes(res.data);
+    try {
+      const res = await axios.get(`${API_BASE}/notes`);
+      setNotes(res.data);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
   };
 
-  // 🔥 AUTO SAVE (FIXED + OPTIMIZED)
+  // 🔥 AUTO SAVE (debounced)
   useEffect(() => {
-    if (!selectedId) return; // prevent new note auto-save
+    if (!selectedId) return;
 
     const timer = setTimeout(() => {
-      axios.put(`http://localhost:5000/notes/${selectedId}`, {
+      axios.put(`${API_BASE}/notes/${selectedId}`, {
         title,
         content
-      });
+      }).catch(err => console.error("Auto-save error:", err));
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [title, content, selectedId]); // ✅ FIXED dependency
+  }, [title, content, selectedId]);
 
   // CREATE
   const saveNote = async () => {
     if (!title && !content) return;
 
-    await axios.post('http://localhost:5000/notes', {
-      title,
-      content
-    });
+    try {
+      await axios.post(`${API_BASE}/notes`, {
+        title,
+        content
+      });
 
-    setTitle('');
-    setContent('');
-    setSelectedId(null);
-    fetchNotes();
+      setTitle('');
+      setContent('');
+      setSelectedId(null);
+      fetchNotes();
+    } catch (err) {
+      console.error("Create error:", err);
+    }
   };
 
   // EDIT
@@ -59,16 +70,19 @@ function App() {
 
   // DELETE
   const deleteNote = async (id) => {
-    await axios.delete(`http://localhost:5000/notes/${id}`);
+    try {
+      await axios.delete(`${API_BASE}/notes/${id}`);
 
-    // Reset editor if deleted note is open
-    if (id === selectedId) {
-      setTitle('');
-      setContent('');
-      setSelectedId(null);
+      if (id === selectedId) {
+        setTitle('');
+        setContent('');
+        setSelectedId(null);
+      }
+
+      fetchNotes();
+    } catch (err) {
+      console.error("Delete error:", err);
     }
-
-    fetchNotes();
   };
 
   // 🔍 SEARCH
@@ -80,10 +94,14 @@ function App() {
       return;
     }
 
-    const res = await axios.get(
-      `http://localhost:5000/notes/search?q=${value}`
-    );
-    setNotes(res.data);
+    try {
+      const res = await axios.get(
+        `${API_BASE}/notes/search?q=${value}`
+      );
+      setNotes(res.data);
+    } catch (err) {
+      console.error("Search error:", err);
+    }
   };
 
   return (
